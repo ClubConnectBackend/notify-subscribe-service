@@ -1,4 +1,4 @@
-package com.clubconnect.notificationservice.listener;
+package com.clubconnect.notificationservice.listner;
 
 import java.util.List;
 import java.util.Map;
@@ -20,44 +20,35 @@ public class EventListener {
         this.emailService = emailService;
     }
 
-    @RabbitListener(queues = "notificationQueue") // Queue name for RabbitMQ
+    @RabbitListener(queues = "notificationQueue")
     public void handleEventNotification(Map<String, Object> eventMessage) {
         try {
             System.out.println("Received event message: " + eventMessage);
 
-            // Extract and validate event details
             String eventId = (String) eventMessage.get("eventId");
             String clubId = (String) eventMessage.get("clubId");
-            List<String> tags = (List<String>) eventMessage.get("tags"); // Adjusted to use List<String>
+            @SuppressWarnings("unchecked")
+            List<String> tags = (List<String>) eventMessage.get("tags");
 
-            if (eventId == null || clubId == null || tags == null) {
-                System.err.println("Invalid event message: Missing required fields.");
+            if (eventId == null || clubId == null || tags == null || tags.isEmpty()) {
+                System.err.println("Invalid event message: Missing or empty required fields.");
                 return;
             }
 
-            // Get all subscriptions
             Map<String, Map<String, String>> allSubscriptions = subscriptionService.getAllSubscriptions();
-
-            for (Map.Entry<String, Map<String, String>> entry : allSubscriptions.entrySet()) {
-                String userId = entry.getKey();
-                Map<String, String> userSubscriptions = entry.getValue();
-
-                // Notify users subscribed to the event's club
+            allSubscriptions.forEach((userId, userSubscriptions) -> {
                 if (clubId.equals(userSubscriptions.get("clubId"))) {
-                    emailService.sendNotification(userId, eventId, "New event in your subscribed club!");
+                    emailService.sendNotification(userId, eventId, "New event in your subscribed club: " + clubId);
                 }
-
-                // Notify users subscribed to the event's tags
-                for (String tag : tags) {
+                tags.forEach(tag -> {
                     if (tag.equals(userSubscriptions.get("tag"))) {
-                        emailService.sendNotification(userId, eventId, "New event with your subscribed tag!");
+                        emailService.sendNotification(userId, eventId, "New event with your subscribed tag: " + tag);
                     }
-                }
-            }
-        } catch (ClassCastException e) {
-            System.err.println("Error processing event message: Invalid data types in message payload.");
+                });
+            });
         } catch (Exception e) {
             System.err.println("Error processing event notification: " + e.getMessage());
         }
     }
+
 }
