@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Copilot ###
+copilot/
+
+### Application Properties ###
+**/application.properties
